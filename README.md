@@ -31,12 +31,15 @@ spend-ledger prices every request locally and attributes the spend:
   so pricing it at face value overstates cost by ~17× on real data.
 - **What spent it?** — attributes token growth to tools, files and MCP servers, and reports how much of
   the growth the model actually explains (coverage).
-- **What is the fixed cost of having these tools installed?** — breaks every request into system
-  prompt, tool schemas (per MCP server) and history.
+- **What is worth its cost?** — splits spend by request source (main turn / subagent / title
+  generation), agent, mode and model, and shows which MCP servers are consuming tool-definition space.
+  It deliberately does **not** re-implement context composition: ZCode's built-in Context capacity panel
+  does that better, so this plugin only adds what the panel lacks — the per-MCP-server split.
 
 Measured on real data, not projected: token totals reconcile **0.00%** against an independent
-implementation (`ccusage zcode`), and one MCP server that was never called cost **5,261 tokens per
-request** because its 25 tool schemas shipped on every request.
+implementation (`ccusage zcode`), and 96.1% of `input_tokens` turns out to be cache reads — so pricing
+at the face rate would overstate cost ~25×. The same data shows cache-resident content costs ~41× less
+per token than fresh input, which is why every savings estimate here declares which rate it used.
 
 Read-only, offline, zero runtime dependencies. See [spend-ledger/README.md](./spend-ledger/README.md)
 for the full method, its limits, and how to verify the numbers yourself.

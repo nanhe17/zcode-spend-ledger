@@ -131,7 +131,8 @@ test("时间范围过滤生效", () => {
 test("doctor 在夹具库上全绿", async () => {
   const { runDoctor } = await import("../src/cli.mjs");
   const { checks } = runDoctor(env);
-  const byName = Object.fromEntries(checks.map((c) => [c.name, c]));
+  const byName = Object.fromEntries(checks.map((c) => [c.id, c]));
+  assert.ok(byName["usage-db"], "检查项应使用稳定的 id");
   assert.equal(byName["usage-db"].status, "ok");
   assert.equal(byName["open-mode"].status, "ok", "夹具库应能以 readOnly 直连打开");
   assert.equal(byName.json1.status, "ok");
@@ -157,17 +158,57 @@ test("英文渲染可用", () => {
   assert.match(text, /Fresh input/);
 });
 
-test("locale 解析优先环境变量，其次设置文件", () => {
+test("locale 解析：优先显式设置，识别不了才往下走，最后回退中文", () => {
   assert.equal(detectLocale({ SPEND_LEDGER_LANG: "en" }, null), "en");
+  assert.equal(detectLocale({ SPEND_LEDGER_LANG: "zh-TW" }, null), "zh-CN");
   assert.equal(detectLocale({}, { locale: "zh-CN" }), "zh-CN");
   assert.equal(detectLocale({ LANG: "en_US.UTF-8" }, {}), "en");
   assert.equal(detectLocale({}, {}), "zh-CN", "无法判断时按产品母语默认中文");
+});
+
+test("locale 解析：模式词与中性 locale 不得把界面变成英文", () => {
+  // localePreference 是模式词（"system"）而不是语言代码，必须跳过它继续看 locale。
+  // 早先的实现把它当成无法识别后硬判成英文，导致中文安装环境下全英文输出。
+  assert.equal(detectLocale({}, { localePreference: "system", locale: "zh-CN" }), "zh-CN");
+  assert.equal(detectLocale({}, { localePreference: "system", locale: "en-US" }), "en");
+  // LANG=C.UTF-8 这类中性值同样不应被当成英文
+  assert.equal(detectLocale({ LANG: "C.UTF-8" }, {}), "zh-CN");
+  assert.equal(detectLocale({ LANG: "C", LC_ALL: "POSIX" }, null), "zh-CN");
+  // 但真正的英文环境仍要识别出来
+  assert.equal(detectLocale({ LANG: "C.UTF-8", LC_ALL: "en_GB.UTF-8" }, {}), "en");
+  // 显式设置优先级最高，能覆盖设置文件
+  assert.equal(detectLocale({ SPEND_LEDGER_LANG: "en" }, { locale: "zh-CN" }), "en");
 });
 
 test("空范围不抛异常，返回可读提示", () => {
   const rep = buildReport({ scope: "session", sessionId: "sess_不存在", env, snapshotPath });
   const text = renderReport(rep, createTranslator("zh-CN"));
   assert.ok(typeof text === "string" && text.length > 0);
+});
+
+test("成分分析挑主会话而不是副代理会话", async () => {
+  const { pickCompositionSession } = await import("../src/report.mjs");
+  // 副代理会话工具集不同、生命周期短，取最新一条容易落到它上面，结论就不可比
+  const rep = {
+    ok: true,
+    scope: {
+      sessionId: null,
+      sessions: [
+        { id: "sess_subagent_agent_x" },
+        { id: "sess_main_new" },
+        { id: "sess_main_old" },
+      ],
+    },
+  };
+  assert.equal(pickCompositionSession(rep), "sess_main_new", "应跳过 sess_subagent_* 取最新的主会话");
+
+  // 明确指定会话时必须尊重指定，不做替换
+  assert.equal(pickCompositionSession({ ...rep, scope: { ...rep.scope, sessionId: "sess_x" } }), "sess_x");
+
+  // 只有副代理会话时退而用之，而不是返回 null
+  assert.equal(pickCompositionSession({ ok: true, scope: { sessionId: null, sessions: [{ id: "sess_subagent_agent_y" }] } }), "sess_subagent_agent_y");
+
+  assert.equal(pickCompositionSession({ ok: false }), null);
 });
 
 test("工作区过滤兼容正反斜杠与大小写（Windows 路径归一化）", () => {

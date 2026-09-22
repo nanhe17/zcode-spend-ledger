@@ -5,6 +5,17 @@ import { zcodePaths, snapshotPath, overridePath } from "./paths.mjs";
 import { loadSnapshot, loadOverrides, createPricer, priceRows } from "./pricing.mjs";
 import { summarize, rollupBy, attributeIncrementally, rollupMcpServers, rollupToolsByBytes } from "./attribution.mjs";
 
+// 成分分析只能针对单个会话，且应当挑主会话：
+// 副代理会话的 id 形如 sess_subagent_*，它们工具集不同、生命周期短，
+// 在工作区/全量作用域下取「最新一条」很容易落到副代理上，结论就不可比。
+export function pickCompositionSession(report) {
+  if (!report?.ok) return null;
+  if (report.scope?.sessionId) return report.scope.sessionId;
+  const sessions = report.scope?.sessions ?? [];
+  const main = sessions.find((s) => !String(s.id).startsWith("sess_subagent_"));
+  return (main ?? sessions[0])?.id ?? null;
+}
+
 export function parseSince(value, now = Date.now()) {
   if (value == null || value === "") return null;
   // 数字一律按毫秒时间戳处理。若先转成字符串再走 Date.parse，

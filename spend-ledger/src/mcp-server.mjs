@@ -4,7 +4,7 @@
 //
 // 协议要点：stdout 只能出现 JSON-RPC 消息，日志一律走 stderr。
 import { createInterface } from "node:readline";
-import { buildReport } from "./report.mjs";
+import { buildReport, pickCompositionSession } from "./report.mjs";
 import { analyzeComposition } from "./composition.mjs";
 import { advise } from "./advisor.mjs";
 import { ledgerStatus } from "./ledger.mjs";
@@ -51,7 +51,7 @@ export const TOOLS = [
   {
     name: "spend_context_breakdown",
     description:
-      "上下文成分分析：把每轮输入拆成系统提示、工具 schema（含按 MCP 服务器细分）、历史消息，给出每轮固定开销与会话累计。静态部分逐条精确可算；历史为残差。需要该会话有 model-io 记录。",
+      "上下文的静态构成：系统提示与工具 schema 的精确字符量，以及每个 MCP 服务器占工具定义的比例（占比在同一类内容内部计算，不依赖分词假设）。刻意不估算绝对 token 数——那需要分词假设且误差可达 1.8 倍；绝对 token 构成请查看 ZCode 内置的「上下文容量」面板。本工具提供该面板没有的按 MCP 服务器细分。需要该会话有 model-io 记录。",
     inputSchema: {
       type: "object",
       properties: {
@@ -64,7 +64,7 @@ export const TOOLS = [
   {
     name: "spend_advisor",
     description:
-      "给出可执行的降本建议：每轮固定开销过高的 MCP 服务器、从未被调用的 MCP 工具、重复读取的文件、上下文膨胀、重试与超上下文浪费等。每条建议都带证据与可省估算（估算值）。",
+      "给出可执行的降本建议，每条都声明按什么单价折算：新增输入、缓存读取、或仅报字符/占比不折算金额（常驻缓存的静态内容边际成本约为新增输入的 1/41，折算美元会高估）。可省量是估算而非测量。",
     inputSchema: {
       type: "object",
       properties: {
@@ -132,32 +132,22 @@ export async function callTool(name, args = {}, env = process.env) {
       let sessionId = args.session_id ?? null;
       if (!sessionId) {
         const rep = buildReport({ ...scopeArgs, scope: "session" });
-        sessionId = rep.ok ? rep.scope.sessionId ?? rep.scope.sessions?.[0]?.id ?? null : null;
+        sessionId = pickCompositionSession(rep);
       }
       if (!sessionId) return { ok: false, error: "no-session-in-scope" };
       const comp = await analyzeComposition({ sessionId, env, maxRequests: args.max_requests ?? 0 });
       if (!comp.ok) return comp;
+      const { perRequest, ...rest } = comp;
       return {
-        ok: true,
-        sessionId: comp.sessionId,
-        requestCount: comp.requestCount,
-        calibration: comp.calibration,
-        aggregate: {
-          ...comp.aggregate,
-          mcpServers: comp.aggregate.mcpServers.slice(0, top),
-          historyBreakdown: comp.aggregate.historyBreakdown
-            ? { ...comp.aggregate.historyBreakdown, perRequest: round(comp.aggregate.historyBreakdown.perRequest) }
-            : null,
-        },
-        warnings: comp.warnings,
-        assumptions: comp.assumptions,
+        ...rest,
+        aggregate: { ...comp.aggregate, servers: comp.aggregate.servers.slice(0, top) },
       };
     }
 
     case "spend_advisor": {
       const rep = buildReport(scopeArgs);
       if (!rep.ok) return rep;
-      const sid = rep.scope.sessionId ?? rep.scope.sessions?.[0]?.id ?? null;
+      const sid = pickCompositionSession(rep);
       const comp = sid ? await analyzeComposition({ sessionId: sid, env }) : null;
       const result = advise(rep, comp);
       return { ...result, findings: result.findings.slice(0, top), ledger: ledgerStatus(env) };
@@ -166,10 +156,6 @@ export async function callTool(name, args = {}, env = process.env) {
     default:
       throw Object.assign(new Error(`Unknown tool: ${name}`), { code: -32602 });
   }
-}
-
-function round(obj) {
-  return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, Math.round(v)]));
 }
 
 // ---- JSON-RPC 循环 ----

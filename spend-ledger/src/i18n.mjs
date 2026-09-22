@@ -29,22 +29,22 @@ export const DICTS = {
     "note.coverage": "归因覆盖率 {pct}%（已归因增量 / 总增量）。",
     "note.cache_write_zero": "本次数据中缓存写入为 0 token，故缓存写入定价假设不影响结果。",
     "doctor.title": "自检",
-    "doctor.db": "用量库",
-    "doctor.open_mode": "只读打开方式",
-    "doctor.index": "会话索引",
-    "doctor.node": "Node 版本",
-    "doctor.sqlite": "内置 SQLite",
-    "doctor.snapshot": "定价快照",
-    "doctor.snapshot_age": "快照生成于 {days} 天前",
-    "doctor.unpriced": "未定价模型",
-    "doctor.model_io": "模型 IO 记录",
-    "doctor.model_io_off": "未开启全量保留（modelIoFullRetentionEnabled=false）。上下文成分分析仍可读取当前活跃会话的记录，但历史会话可能已被清理。",
-    "doctor.retention_ok": "已开启全量保留，上下文成分分析可用。",
-    "doctor.ledger": "账本存储",
-    "doctor.ledger_sqlite": "SQLite（node:sqlite）",
-    "doctor.ledger_jsonl": "JSONL 降级（node:sqlite 不可用）",
+    "check.node": "Node 与内置 SQLite",
+    "check.data-dir": "插件数据目录",
+    "check.usage-db": "用量库",
+    "check.open-mode": "只读打开方式",
+    "check.json1": "JSON1 支持",
+    "check.tasks-index": "会话索引",
+    "check.ledger": "账本存储",
+    "check.pricing-snapshot": "定价快照",
+    "check.unpriced-models": "未定价模型",
+    "check.model-io": "模型 IO 记录",
     "doctor.ok": "正常",
     "doctor.fail": "异常",
+    "doctor.warn": "注意",
+    "doctor.col.check": "检查项",
+    "doctor.col.status": "状态",
+    "doctor.col.detail": "详情",
     "error.no_db": "找不到 ZCode 用量库：{path}",
     "error.no_sessions": "在范围 {scope} 内没有找到会话记录。",
     "error.no_rows": "在范围内没有已完成的模型请求记录。",
@@ -83,22 +83,22 @@ export const DICTS = {
     "note.coverage": "Attribution coverage {pct}% (attributed growth / total growth).",
     "note.cache_write_zero": "Cache-write tokens are zero in this data, so the cache-write pricing assumption does not affect the result.",
     "doctor.title": "Self-check",
-    "doctor.db": "Usage DB",
-    "doctor.open_mode": "Read-only open mode",
-    "doctor.index": "Session index",
-    "doctor.node": "Node version",
-    "doctor.sqlite": "Bundled SQLite",
-    "doctor.snapshot": "Pricing snapshot",
-    "doctor.snapshot_age": "Snapshot generated {days} day(s) ago",
-    "doctor.unpriced": "Unpriced models",
-    "doctor.model_io": "Model IO records",
-    "doctor.model_io_off": "Full retention is off (modelIoFullRetentionEnabled=false). Context composition still reads the active session's records, but older sessions may be pruned.",
-    "doctor.retention_ok": "Full retention is on; context composition is available.",
-    "doctor.ledger": "Ledger store",
-    "doctor.ledger_sqlite": "SQLite (node:sqlite)",
-    "doctor.ledger_jsonl": "JSONL fallback (node:sqlite unavailable)",
+    "check.node": "Node and bundled SQLite",
+    "check.data-dir": "Plugin data directory",
+    "check.usage-db": "Usage DB",
+    "check.open-mode": "Read-only open mode",
+    "check.json1": "JSON1 support",
+    "check.tasks-index": "Session index",
+    "check.ledger": "Ledger store",
+    "check.pricing-snapshot": "Pricing snapshot",
+    "check.unpriced-models": "Unpriced models",
+    "check.model-io": "Model IO records",
     "doctor.ok": "ok",
     "doctor.fail": "fail",
+    "doctor.warn": "warn",
+    "doctor.col.check": "check",
+    "doctor.col.status": "status",
+    "doctor.col.detail": "detail",
     "error.no_db": "ZCode usage DB not found: {path}",
     "error.no_sessions": "No sessions found in scope {scope}.",
     "error.no_rows": "No completed model requests in scope.",
@@ -110,21 +110,28 @@ export const DICTS = {
   },
 };
 
-export function detectLocale(env = process.env, settings = null) {
-  // 显式设置优先，但只接受能识别的值；"auto" 或未知值应继续走后面的探测，
-  // 否则用户填了 auto 反而会被强制成英文。
-  const explicit = env.SPEND_LEDGER_LANG || env.ZCODE_LANG;
-  if (explicit && /^(zh|en)/i.test(explicit)) return normalizeLocale(explicit);
-  const fromSettings = settings?.localePreference || settings?.locale;
-  if (fromSettings && /^(zh|en)/i.test(fromSettings)) return normalizeLocale(fromSettings);
-  return normalizeLocale(env.LANG || env.LC_ALL || "zh-CN");
-}
+export const DEFAULT_LOCALE = "zh-CN";
 
+// 只认能识别的语言代码；识别不了就返回 null，交给下一个信号。
+// 早先的实现对无法识别的值返回 "en"，于是 `localePreference: "system"` 这类模式词
+// 和 `LANG=C.UTF-8` 这类中性值都会把界面强行变成英文。
 function normalizeLocale(value) {
+  if (!value) return null;
   const v = String(value).toLowerCase();
   if (v.startsWith("zh")) return "zh-CN";
   if (v.startsWith("en")) return "en";
-  return "en";
+  return null;
+}
+
+export function detectLocale(env = process.env, settings = null) {
+  // 优先级：显式环境变量 → ZCode 的语言偏好 → ZCode 的界面语言 → 系统 locale。
+  // settings.localePreference 可能是 "system" 这样的模式词，因此用「能识别才采纳」的方式逐个尝试。
+  const candidates = [env.SPEND_LEDGER_LANG, env.ZCODE_LANG, settings?.localePreference, settings?.locale, env.LC_ALL, env.LANG];
+  for (const candidate of candidates) {
+    const norm = normalizeLocale(candidate);
+    if (norm) return norm;
+  }
+  return DEFAULT_LOCALE;
 }
 
 export function createTranslator(locale) {

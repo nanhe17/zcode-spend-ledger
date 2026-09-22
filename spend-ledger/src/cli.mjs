@@ -11,7 +11,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { zcodePaths, dataDir, snapshotPath, overridePath, describeSources } from "./paths.mjs";
 import { openUsageDb, loadProviderCatalog, providerSlug, readSettings, findSessions, loadSqlite, SQLITE_UNAVAILABLE_HINT } from "./db.mjs";
 import { loadSnapshot, loadOverrides, createPricer } from "./pricing.mjs";
-import { buildReport } from "./report.mjs";
+import { buildReport, pickCompositionSession } from "./report.mjs";
 import { renderReport, renderComposition, renderFindings } from "./view.mjs";
 import { analyzeComposition } from "./composition.mjs";
 import { advise } from "./advisor.mjs";
@@ -145,9 +145,9 @@ async function cmdAdvise(args, env, t) {
   return renderComposition(comp, t) + "\n" + renderFindings(result, t);
 }
 
-// 成分分析需要单个会话；范围里没有明确会话时取范围内最新的一条
+// 成分分析需要单个会话；范围里没有明确会话时取范围内最新的主会话（跳过副代理）
 async function compositionFor(rep, args, env) {
-  const sid = rep.scope?.sessionId ?? rep.scope?.sessions?.[0]?.id ?? null;
+  const sid = pickCompositionSession(rep);
   if (!sid) return { ok: false, error: "no-session-in-scope" };
   return analyzeComposition({ sessionId: sid, env, maxRequests: args.maxRequests ?? 0, includeText: Boolean(args.includeText) });
 }
@@ -223,7 +223,8 @@ export function runDoctor(env = process.env) {
   const conn = openUsageDb({ env });
 
   const checks = [];
-  const add = (name, status, detail) => checks.push({ name, status, detail });
+  // id 是稳定的机器可读标识（供 --json 与测试使用），展示标签由渲染层本地化
+  const add = (id, status, detail) => checks.push({ id, status, detail });
   const usedUnpriced = [];
 
   add("node", loadSqlite() ? "ok" : "fail", loadSqlite()
@@ -273,8 +274,13 @@ export function runDoctor(env = process.env) {
 
   const ioFiles = listModelIo(p);
   const retention = settings.modelIoFullRetentionEnabled === true;
-  add("model-io", ioFiles.length ? (retention ? "ok" : "warn") : "warn",
-    ioFiles.length ? `${ioFiles.length} 个文件 · 全量保留=${retention}` : "未找到 model-io 记录（上下文成分分析不可用）");
+  add(
+    "model-io",
+    ioFiles.length ? (retention ? "ok" : "warn") : "warn",
+    ioFiles.length
+      ? `${ioFiles.length} 个文件 · 全量保留=${retention} · 该文件是滚动窗口（按体积截断，只保留最近请求）`
+      : "未找到 model-io 记录（静态上下文测量不可用）"
+  );
 
   return { checks, sources: describeSources(env) };
 }
@@ -290,14 +296,26 @@ function listModelIo(p) {
 
 function cmdDoctor(args, env, t) {
   const { checks } = runDoctor(env);
+  // JSON 保留稳定的机器可读 id；终端展示走本地化标签，标签缺失时回退到 id。
+  // 状态文案同样本地化，避免英文用户看到中文状态。
   if (args.json) return JSON.stringify({ checks }, null, 2);
+  const label = (c) => {
+    const key = `check.${c.id}`;
+    const translated = t(key);
+    return translated === key ? c.id : translated;
+  };
+  const status = (v) => {
+    const key = v === "ok" ? "doctor.ok" : v === "warn" ? "doctor.warn" : "doctor.fail";
+    const text = t(key);
+    return v === "ok" ? c.green(text) : v === "warn" ? c.yellow(text) : c.red(text);
+  };
   const out = [heading(t("doctor.title"))];
   out.push(
     table(
       [
-        { header: "check", key: "name" },
-        { header: "status", key: "status", render: (v) => (v === "ok" ? c.green("ok") : v === "warn" ? c.yellow("warn") : c.red("FAIL")) },
-        { header: "detail", key: "detail" },
+        { header: t("doctor.col.check"), key: "id", render: (_, row) => label(row) },
+        { header: t("doctor.col.status"), key: "status", render: status },
+        { header: t("doctor.col.detail"), key: "detail" },
       ],
       checks
     )

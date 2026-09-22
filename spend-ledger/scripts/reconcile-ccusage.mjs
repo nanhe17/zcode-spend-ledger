@@ -4,7 +4,7 @@
 // 各家定价表不同。因此本脚本比较 token 与请求数，并把成本差异明确归因。
 //
 // 用法：node scripts/reconcile-ccusage.mjs [--month 2026-09] [--no-run]
-import { execFileSync } from "node:child_process";
+import { execSync } from "node:child_process";
 import { buildReport, parseSince } from "../src/report.mjs";
 import { openUsageDb } from "../src/db.mjs";
 import { fmtTokens, fmtUsd } from "../src/render.mjs";
@@ -41,8 +41,10 @@ let theirs = null;
 let theirError = null;
 if (!noRun) {
   try {
-    const npx = process.platform === "win32" ? "npx.cmd" : "npx";
-    const raw = execFileSync(npx, ["-y", "ccusage@latest", "zcode", month ? "monthly" : "session", "--json"], {
+    // 用完整命令串走 shell：Windows 上 Node 22+ 不允许直接执行 npx.cmd（CVE-2024-27980 的缓解），
+    // 而 execFileSync + shell:true 又会触发弃用警告。参数全部是固定字面量，无注入面。
+    const parts = ["npx", "-y", "ccusage@latest", "zcode", month ? "monthly" : "session", "--json"];
+    const raw = execSync(parts.join(" "), {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
       maxBuffer: 64 * 1024 * 1024,
