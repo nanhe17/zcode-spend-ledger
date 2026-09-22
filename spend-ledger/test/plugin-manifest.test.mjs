@@ -126,6 +126,15 @@ test("所有源文件都不含未替换的占位符或凭据", () => {
   }
 });
 
+test("版本号在三处保持一致（清单、package.json、MCP serverInfo）", async () => {
+  // 三处不一致时宿主看到的版本会自相矛盾，更新也可能因此不被检测到
+  const pkg = readJson(join(ROOT, "package.json"));
+  const { SERVER_INFO } = await import("../src/mcp-server.mjs");
+  assert.equal(manifest.version, pkg.version, "清单与 package.json 版本应一致");
+  assert.equal(manifest.version, SERVER_INFO.version, "清单与 MCP serverInfo 版本应一致");
+  assert.equal(SERVER_INFO.name, manifest.name, "MCP 服务名应与插件名一致");
+});
+
 test("不存在 dist 目录（零依赖即无需构建产物）", () => {
   assert.equal(existsSync(join(ROOT, "dist")), false, "若引入构建步骤需同步更新 README 与这里的断言");
 });

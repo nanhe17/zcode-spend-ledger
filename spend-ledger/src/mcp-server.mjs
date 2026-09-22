@@ -9,7 +9,7 @@ import { analyzeComposition } from "./composition.mjs";
 import { advise } from "./advisor.mjs";
 import { ledgerStatus } from "./ledger.mjs";
 
-export const SERVER_INFO = { name: "spend-ledger", version: "0.1.0" };
+export const SERVER_INFO = { name: "spend-ledger", version: "0.2.0" };
 export const PROTOCOL_FALLBACK = "2024-11-05";
 
 const SCOPE_PROP = {

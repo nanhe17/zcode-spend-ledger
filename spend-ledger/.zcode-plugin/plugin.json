@@ -1,6 +1,6 @@
 {
   "name": "spend-ledger",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Token and cost attribution for ZCode: price every request from the local usage DB, attribute spend to tools, files and MCP servers, and break the context down into system prompt, tool schemas and history. Read-only, offline, zero runtime dependencies.",
   "description_i18n": {
     "en": "Token and cost attribution for ZCode: price every request from the local usage DB, attribute spend to tools, files and MCP servers, and break the context down into system prompt, tool schemas and history. Read-only, offline, zero runtime dependencies.",

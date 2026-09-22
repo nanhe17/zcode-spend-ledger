@@ -1,6 +1,6 @@
 {
   "name": "spend-ledger",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "ZCode token and cost attribution plugin: price every request from the local usage DB, attribute spend to tools/files/MCP servers, and break down context composition.",
