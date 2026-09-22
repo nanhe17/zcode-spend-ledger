@@ -1,5 +1,5 @@
 {
-  "name": "dev-zcodeworkspace-plugins",
+  "name": "zcode-spend-ledger",
   "plugins": [
     {
       "name": "spend-ledger",
