@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "spend-ledger": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/src/entry-mcp.mjs"],
+      "cwd": "${CLAUDE_PROJECT_DIR}",
+      "env": {
+        "SPEND_LEDGER_LANG": "${user_config.language}"
+      },
+      "timeoutMs": 30000
+    }
+  }
+}

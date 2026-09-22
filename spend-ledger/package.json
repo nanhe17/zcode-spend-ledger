@@ -1,0 +1,20 @@
+{
+  "name": "spend-ledger",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "ZCode token and cost attribution plugin: price every request from the local usage DB, attribute spend to tools/files/MCP servers, and break down context composition.",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.mjs\"",
+    "report": "node src/entry-cli.mjs report",
+    "advise": "node src/entry-cli.mjs advise",
+    "doctor": "node src/entry-cli.mjs doctor",
+    "pricing:update": "node scripts/build-pricing-snapshot.mjs",
+    "reconcile": "node scripts/reconcile-ccusage.mjs",
+    "probe:p0": "node scripts/p0-probe.mjs"
+  },
+  "license": "MIT"
+}

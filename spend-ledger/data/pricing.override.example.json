@@ -1,0 +1,19 @@
+{
+  "_comment": "用户定价覆盖。把本文件复制为 ${ZCODE_PLUGIN_DATA}/pricing.override.json 后按需修改。键名不区分大小写，可用 `provider/model` 形式消歧。单价单位为「美元 / token」。",
+  "models": {
+    "my-model-name": {
+      "input": 0.0000003,
+      "output": 0.0000012,
+      "cacheRead": 0.00000006,
+      "cacheWrite": null,
+      "note": "cacheWrite 留空表示未知，将按输入单价的倍率估算并在报告中标注该假设"
+    },
+    "my-provider/same-model-different-price": {
+      "input": 0.000001,
+      "output": 0.000004,
+      "cacheRead": 0.0000001,
+      "cacheWrite": 0.00000125,
+      "tiers": [{ "over": 200000, "input": 0.000002, "output": 0.000008 }]
+    }
+  }
+}

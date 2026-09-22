@@ -1,0 +1,20 @@
+{
+  "name": "dev-zcodeworkspace-plugins",
+  "plugins": [
+    {
+      "name": "spend-ledger",
+      "source": "./spend-ledger",
+      "version": "0.1.0",
+      "description": "ZCode 用量与成本归因：从本地用量库为每次请求定价，把开销归因到工具、文件与 MCP 服务器，并拆解上下文成分。全程只读、离线、零依赖。",
+      "displayName": "Spend Ledger",
+      "displayName_i18n": {
+        "zh-CN": "用量与成本归因"
+      },
+      "description_i18n": {
+        "en": "Token and cost attribution for ZCode: price every request from the local usage DB, attribute spend to tools, files and MCP servers, and break the context down into system prompt, tool schemas and history. Read-only, offline, zero runtime dependencies.",
+        "zh-CN": "ZCode 用量与成本归因：从本地用量库为每次请求定价，把开销归因到工具、文件与 MCP 服务器，并把上下文拆成系统提示、工具 schema 与历史消息。全程只读、离线、零运行时依赖。"
+      },
+      "category": "developer-tools"
+    }
+  ]
+}
