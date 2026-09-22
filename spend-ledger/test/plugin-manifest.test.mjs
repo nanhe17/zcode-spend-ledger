@@ -135,6 +135,19 @@ test("版本号在三处保持一致（清单、package.json、MCP serverInfo）
   assert.equal(SERVER_INFO.name, manifest.name, "MCP 服务名应与插件名一致");
 });
 
+test("市场清单里的版本与插件清单一致（防止两处版本漂移）", () => {
+  // marketplace.json 位于插件目录的上一级（仓库根）。它带一个与清单重复的 version 字段，
+  // 实践中立刻就会漂移——提版本时漏改它，更新就会被判断成「已是最新」。
+  // 插件目录是自包含的，因此该文件不存在时跳过，而不是失败。
+  const catalogPath = join(ROOT, "..", "marketplace.json");
+  if (!existsSync(catalogPath)) return;
+  const catalog = readJson(catalogPath);
+  const entry = (catalog.plugins ?? []).find((p) => p.name === manifest.name);
+  assert.ok(entry, `市场清单里找不到 ${manifest.name} 条目`);
+  assert.equal(entry.version, manifest.version, "市场清单与插件清单的版本必须一致");
+  assert.equal(entry.source, `./${manifest.name}`, "市场条目的 source 应指向插件目录");
+});
+
 test("不存在 dist 目录（零依赖即无需构建产物）", () => {
   assert.equal(existsSync(join(ROOT, "dist")), false, "若引入构建步骤需同步更新 README 与这里的断言");
 });

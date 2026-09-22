@@ -4,7 +4,7 @@
     {
       "name": "spend-ledger",
       "source": "./spend-ledger",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "description": "ZCode 用量与成本归因：从本地用量库为每次请求定价，把开销归因到工具、文件与 MCP 服务器，并拆解上下文成分。全程只读、离线、零依赖。",
       "displayName": "Spend Ledger",
       "displayName_i18n": {
