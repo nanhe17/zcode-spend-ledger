@@ -1,0 +1,21 @@
+# 依赖与构建产物（本插件零运行时依赖，正常不会出现）
+node_modules/
+dist/
+
+# 编辑器与系统
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# 日志与临时文件
+*.log
+npm-debug.log*
+*.tmp
+
+# 插件运行期数据（水位线、账本、定价覆盖）不应入库
+.mimosa/
+ledger.sqlite*
+ledger.jsonl
+pricing.override.json
